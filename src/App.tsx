@@ -13,6 +13,7 @@ import LearnPage from './components/LearnPage';
 import HistoryPage from './components/HistoryPage';
 import ProfilePage from './components/ProfilePage';
 import { UserProgress, CompassReport } from './types';
+import { analyzeClaimContent } from './lib/analyzer';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY_PROGRESS = 'mil_compass_progress';
@@ -297,6 +298,8 @@ export default function App() {
     setIsAnalyzing(true);
     handleNavigate('analyze');
 
+    let result: any = null;
+
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -304,12 +307,25 @@ export default function App() {
         body: JSON.stringify({ content, type })
       });
 
-      if (!response.ok) {
-        throw new Error('API server failed');
+      if (response.ok) {
+        result = await response.json();
+      } else {
+        console.warn(`API server returned ${response.status}. Falling back to local analyzer.`);
       }
+    } catch (err) {
+      console.warn('API server fetch failed. Falling back to local analyzer.', err);
+    }
 
-      const result = await response.json();
+    // If API endpoint was unreachable or returned non-200, use local analyzer
+    if (!result) {
+      try {
+        result = await analyzeClaimContent(content, type);
+      } catch (fallbackErr) {
+        console.error('Fallback analyzer error:', fallbackErr);
+      }
+    }
 
+    if (result) {
       const newReport: CompassReport = {
         id: 'report-' + Math.random().toString(36).substr(2, 9),
         claim: result.claim || content.substring(0, 60),
@@ -345,13 +361,11 @@ export default function App() {
 
       handleNavigate('report', newReport);
       triggerToast("✨ Scorecard compiled successfully! +10 XP awarded.");
-
-    } catch (err) {
-      console.error(err);
-      triggerToast("⚠️ Connection issue. Executing offline MIL backup evaluator.");
-    } finally {
-      setIsAnalyzing(false);
+    } else {
+      triggerToast("❌ Unable to compile analysis report. Please try again.");
     }
+
+    setIsAnalyzing(false);
   };
 
   const handleCompleteLesson = (reflectionAnswer: string, confidenceScore: number) => {
