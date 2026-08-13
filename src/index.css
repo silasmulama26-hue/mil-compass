@@ -18,3 +18,42 @@
     font-family: var(--font-sans);
   }
 }
+
+@media print {
+  /* Hide headers, navigation, footers, interactive buttons, and modals when printing/saving to PDF */
+  nav,
+  header,
+  footer,
+  #report-back-btn,
+  #delete-report-btn,
+  #share-report-btn,
+  #download-pdf-btn,
+  #share-modal-backdrop,
+  #complete-lesson-btn,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #compass-report-view {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Retain accurate colors for background badges and panels */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .shadow-xs, .shadow-md, .shadow-2xl {
+    box-shadow: none !important;
+  }
+}

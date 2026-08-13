@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Compass, Check, ArrowLeft, Info, HelpCircle, Award, Sparkles, Share2, Copy, CheckCircle2, X, ChevronDown, ChevronRight, ShieldCheck, Trash2 } from 'lucide-react';
+import { Compass, Check, ArrowLeft, Info, HelpCircle, Award, Sparkles, Share2, Copy, CheckCircle2, X, ChevronDown, ChevronRight, ShieldCheck, Trash2, Printer } from 'lucide-react';
 import { CompassReport } from '../types';
 
 interface CompassReportPageProps {
@@ -117,7 +117,7 @@ Learn critical thinking & cognitive sovereignty with MIL Compass!
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm font-semibold group cursor-pointer"
+          className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm font-semibold group cursor-pointer print:hidden"
           id="report-back-btn"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
@@ -132,7 +132,7 @@ Learn critical thinking & cognitive sovereignty with MIL Compass!
                   onDeleteReport(report.id);
                 }
               }}
-              className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer print:hidden"
               id="delete-report-btn"
               title="Delete this report"
             >
@@ -142,8 +142,18 @@ Learn critical thinking & cognitive sovereignty with MIL Compass!
           )}
 
           <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer print:hidden"
+            id="download-pdf-btn"
+            title="Generate formatted PDF report"
+          >
+            <Printer className="h-4 w-4 text-slate-600" />
+            <span>Download PDF</span>
+          </button>
+
+          <button
             onClick={() => setShowShareModal(true)}
-            className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-[#0057A8] border border-blue-200 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-[#0057A8] border border-blue-200 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer print:hidden"
             id="share-report-btn"
           >
             <Share2 className="h-4 w-4 text-[#0057A8]" />
