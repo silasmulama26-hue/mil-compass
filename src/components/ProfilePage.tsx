@@ -4,16 +4,20 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Award, ShieldCheck, HelpCircle, Sparkles, RefreshCw, Star, Mail, Landmark, Trophy, Search, PartyPopper } from 'lucide-react';
+import { Award, ShieldCheck, HelpCircle, Sparkles, RefreshCw, Star, Mail, Landmark, Trophy, Search, PartyPopper, Database, CheckCircle2, User as UserIcon } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserProgress } from '../types';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface ProfilePageProps {
   progress: UserProgress;
   onResetProgress: () => void;
+  currentUser?: User | null;
+  onOpenAuthModal?: () => void;
 }
 
-export default function ProfilePage({ progress, onResetProgress }: ProfilePageProps) {
+export default function ProfilePage({ progress, onResetProgress, currentUser, onOpenAuthModal }: ProfilePageProps) {
   const [celebrated, setCelebrated] = useState(false);
 
   // Trigger high-energy festive confetti burst
@@ -175,9 +179,33 @@ export default function ProfilePage({ progress, onResetProgress }: ProfilePagePr
               <p className="text-2xl font-black text-amber-500 mt-1">🔥 {progress.streak} Days</p>
             </div>
 
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
-              <span className="text-xs text-slate-400 font-semibold uppercase block">XP Experience Points</span>
-              <p className="text-2xl font-black text-emerald-600 mt-1">✨ {progress.xp} XP</p>
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 font-semibold uppercase flex items-center gap-1">
+                  <Database className="h-3.5 w-3.5 text-[#0057A8]" />
+                  <span>Supabase Sync</span>
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  currentUser ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {currentUser ? 'Active' : isSupabaseConfigured ? 'Ready' : 'Offline'}
+                </span>
+              </div>
+              
+              <p className="text-xs font-bold text-slate-800 truncate">
+                {currentUser ? currentUser.email : 'Local Storage Mode'}
+              </p>
+
+              {onOpenAuthModal && (
+                <button
+                  type="button"
+                  onClick={onOpenAuthModal}
+                  className="mt-1 text-[11px] font-bold text-[#0057A8] hover:underline cursor-pointer block"
+                  id="profile-manage-supabase-btn"
+                >
+                  {currentUser ? 'Manage Supabase Account' : 'Sign In / Connect Supabase'}
+                </button>
+              )}
             </div>
           </div>
 

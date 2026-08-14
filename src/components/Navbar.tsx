@@ -4,16 +4,19 @@
  */
 
 import React, { useState } from 'react';
-import { Compass, Menu, X, Award, CheckCircle, HelpCircle } from 'lucide-react';
+import { Compass, Menu, X, Award, CheckCircle, HelpCircle, Database, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { UserProgress } from '../types';
+import { User } from '@supabase/supabase-js';
 
 interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   progress: UserProgress;
+  currentUser: User | null;
+  onOpenAuthModal: () => void;
 }
 
-export default function Navbar({ activeTab, setActiveTab, progress }: NavbarProps) {
+export default function Navbar({ activeTab, setActiveTab, progress, currentUser, onOpenAuthModal }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const navItems = [
@@ -62,8 +65,25 @@ export default function Navbar({ activeTab, setActiveTab, progress }: NavbarProp
             </div>
           </div>
 
-          {/* User Profile & XP Tracker on Desktop */}
-          <div className="hidden md:flex items-center gap-4">
+          {/* User Profile, Supabase Auth & XP Tracker on Desktop */}
+          <div className="hidden md:flex items-center gap-3">
+            {/* Supabase User / Auth Button */}
+            <button
+              onClick={onOpenAuthModal}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                currentUser
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+              id="supabase-auth-nav-btn"
+              title="Supabase Authentication and Cloud History Sync"
+            >
+              <Database className={`h-3.5 w-3.5 ${currentUser ? 'text-emerald-600' : 'text-[#0057A8]'}`} />
+              <span className="max-w-[120px] truncate">
+                {currentUser ? currentUser.email?.split('@')[0] : 'Supabase Auth'}
+              </span>
+            </button>
+
             <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-full px-3 py-1">
               <span className="text-amber-500 font-bold text-sm">✨ {progress.xp} XP</span>
             </div>
@@ -125,21 +145,40 @@ export default function Navbar({ activeTab, setActiveTab, progress }: NavbarProp
               {item.label}
             </button>
           ))}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop"
-                alt="Kevin"
-                className="h-10 w-10 rounded-full object-cover border-2 border-primary"
-                referrerPolicy="no-referrer"
-              />
-              <div>
-                <p className="font-semibold text-slate-800 text-sm">Kevin</p>
-                <p className="text-xs text-slate-400 font-mono">{progress.level}</p>
+          <div className="pt-3 border-t border-slate-100 space-y-3">
+            <button
+              onClick={() => {
+                onOpenAuthModal();
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center justify-between px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+              id="mobile-supabase-auth-btn"
+            >
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-[#0057A8]" />
+                <span>{currentUser ? currentUser.email : 'Supabase Authentication'}</span>
               </div>
-            </div>
-            <div className="bg-amber-50 border border-amber-100 rounded-full px-3 py-1 text-amber-500 font-bold text-sm">
-              ✨ {progress.xp} XP
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${currentUser ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                {currentUser ? 'Signed In' : 'Account'}
+              </span>
+            </button>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <img
+                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop"
+                  alt="Kevin"
+                  className="h-10 w-10 rounded-full object-cover border-2 border-primary"
+                  referrerPolicy="no-referrer"
+                />
+                <div>
+                  <p className="font-semibold text-slate-800 text-sm">Kevin</p>
+                  <p className="text-xs text-slate-400 font-mono">{progress.level}</p>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-full px-3 py-1 text-amber-500 font-bold text-sm">
+                ✨ {progress.xp} XP
+              </div>
             </div>
           </div>
         </div>

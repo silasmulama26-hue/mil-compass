@@ -12,8 +12,18 @@ import CompassReportPage from './components/CompassReportPage';
 import LearnPage from './components/LearnPage';
 import HistoryPage from './components/HistoryPage';
 import ProfilePage from './components/ProfilePage';
+import SupabaseAuthModal from './components/SupabaseAuthModal';
 import { UserProgress, CompassReport } from './types';
 import { analyzeClaimContent } from './lib/analyzer';
+import { 
+  supabase, 
+  isSupabaseConfigured, 
+  fetchSupabaseReports, 
+  saveSupabaseReport, 
+  deleteSupabaseReport, 
+  syncLocalReportsToSupabase 
+} from './lib/supabase';
+import { User } from '@supabase/supabase-js';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY_PROGRESS = 'mil_compass_progress';
@@ -200,10 +210,54 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Supabase Auth & Cloud Sync State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const recentAnalysesRef = React.useRef<CompassReport[]>(recentAnalyses);
   useEffect(() => {
     recentAnalysesRef.current = recentAnalyses;
   }, [recentAnalyses]);
+
+  // Load Cloud Reports from Supabase
+  const loadCloudReports = async (user: User) => {
+    const cloudReports = await fetchSupabaseReports(user.id);
+    if (cloudReports !== null) {
+      if (cloudReports.length > 0) {
+        setRecentAnalyses(cloudReports);
+        recentAnalysesRef.current = cloudReports;
+        localStorage.setItem(LOCAL_STORAGE_KEY_REPORTS, JSON.stringify(cloudReports));
+      } else if (recentAnalysesRef.current.length > 0) {
+        // First time cloud user with existing local reports: sync them up to Supabase!
+        await syncLocalReportsToSupabase(recentAnalysesRef.current, user.id);
+      }
+    }
+  };
+
+  // Initialize Supabase Auth session listener
+  useEffect(() => {
+    if (!supabase) return;
+
+    // Fetch initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user || null;
+      setCurrentUser(user);
+      if (user) {
+        loadCloudReports(user);
+      }
+    });
+
+    // Subscribe to auth state transitions
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user || null;
+      setCurrentUser(user);
+      if (user) {
+        loadCloudReports(user);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Handle navigation while updating URL path
   const handleNavigate = (newTab: string, report: CompassReport | null = null, replace = false) => {
@@ -350,6 +404,11 @@ export default function App() {
       setRecentAnalyses(updatedReports);
       localStorage.setItem(LOCAL_STORAGE_KEY_REPORTS, JSON.stringify(updatedReports));
 
+      // Sync to Supabase if authenticated
+      if (currentUser) {
+        saveSupabaseReport(newReport, currentUser.id);
+      }
+
       // Award points for generating an analysis
       const updatedProgress = {
         ...progress,
@@ -371,14 +430,18 @@ export default function App() {
   const handleCompleteLesson = (reflectionAnswer: string, confidenceScore: number) => {
     if (!selectedReport) return;
 
+    const updatedReport = { ...selectedReport, reflectionAnswer, confidenceScore };
+
     // Update report with user reflection answers
     const updatedReports = recentAnalyses.map((r) =>
-      r.id === selectedReport.id
-        ? { ...r, reflectionAnswer, confidenceScore }
-        : r
+      r.id === selectedReport.id ? updatedReport : r
     );
     setRecentAnalyses(updatedReports);
     localStorage.setItem(LOCAL_STORAGE_KEY_REPORTS, JSON.stringify(updatedReports));
+
+    if (currentUser) {
+      saveSupabaseReport(updatedReport, currentUser.id);
+    }
 
     // Increase user progress metrics
     const updatedProgress: UserProgress = {
@@ -436,6 +499,11 @@ export default function App() {
     const updatedReports = [newReport, ...recentAnalyses];
     setRecentAnalyses(updatedReports);
     localStorage.setItem(LOCAL_STORAGE_KEY_REPORTS, JSON.stringify(updatedReports));
+
+    if (currentUser) {
+      saveSupabaseReport(newReport, currentUser.id);
+    }
+
     triggerToast("📝 Custom analysis scorecard added to archive.");
   };
 
@@ -443,9 +511,15 @@ export default function App() {
     const updatedReports = recentAnalyses.map(r => r.id === updatedReport.id ? updatedReport : r);
     setRecentAnalyses(updatedReports);
     localStorage.setItem(LOCAL_STORAGE_KEY_REPORTS, JSON.stringify(updatedReports));
+
     if (selectedReport?.id === updatedReport.id) {
       setSelectedReport(updatedReport);
     }
+
+    if (currentUser) {
+      saveSupabaseReport(updatedReport, currentUser.id);
+    }
+
     triggerToast("✏️ Scorecard report updated successfully.");
   };
 
@@ -453,15 +527,29 @@ export default function App() {
     const updatedReports = recentAnalyses.filter(r => r.id !== reportId);
     setRecentAnalyses(updatedReports);
     localStorage.setItem(LOCAL_STORAGE_KEY_REPORTS, JSON.stringify(updatedReports));
+
     if (selectedReport?.id === reportId) {
       setSelectedReport(null);
       handleNavigate('history');
     }
+
+    if (currentUser) {
+      deleteSupabaseReport(reportId, currentUser.id);
+    }
+
     triggerToast("🗑️ Scorecard report removed from archive.");
   };
 
   const handleSelectRecentAnalysis = (report: CompassReport) => {
     handleNavigate('report', report);
+  };
+
+  const handleSignOut = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+      setCurrentUser(null);
+      triggerToast("👋 Signed out from Supabase account.");
+    }
   };
 
   return (
@@ -472,6 +560,20 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => handleNavigate(tab)}
         progress={progress}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+      />
+
+      {/* Supabase Authentication & Cloud Sync Modal */}
+      <SupabaseAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        onAuthSuccess={(user, msg) => {
+          setCurrentUser(user);
+          if (msg) triggerToast(msg);
+        }}
+        onSignOut={handleSignOut}
       />
 
       {/* Floating Success Toast Notification */}
@@ -541,6 +643,8 @@ export default function App() {
           <ProfilePage
             progress={progress}
             onResetProgress={handleResetProgress}
+            currentUser={currentUser}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
           />
         )}
       </main>
